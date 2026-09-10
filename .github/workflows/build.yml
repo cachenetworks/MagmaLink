@@ -51,20 +51,23 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build MagmaLink
-        run: ./gradlew build
+      - name: Build and test MagmaLink JVM server
+        run: ./gradlew :Lavalink-Server:bootJar :Lavalink-Server:test
 
       - name: Build MagmaLink musl
-        run: ./gradlew build -PtargetPlatform=musl
+        run: ./gradlew :Lavalink-Server:bootJar -PtargetPlatform=musl
 
       - name: Publish to Maven
         env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           ORG_GRADLE_PROJECT_MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           ORG_GRADLE_PROJECT_MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+        if: env.MAVEN_USERNAME != '' && env.MAVEN_PASSWORD != ''
         run: ./gradlew publish
 
       - name: Upload MagmaLink.jar
