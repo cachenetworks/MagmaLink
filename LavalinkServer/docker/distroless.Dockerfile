@@ -1,0 +1,11 @@
+FROM gcr.io/distroless/java17-debian12:nonroot
+
+WORKDIR /opt/MagmaLink
+
+# Distroless images do not contain FFmpeg; use Dockerfile or alpine.Dockerfile
+# when HLS video packaging is required.
+COPY LavalinkServer/build/libs/MagmaLink.jar MagmaLink.jar
+
+ENTRYPOINT ["java", "-jar"]
+
+CMD ["MagmaLink.jar"]
