@@ -1,0 +1,123 @@
+name: magmalink
+
+x-lavalink-environment: &lavalink-environment
+  SERVER_HTTP2_ENABLED: "true"
+  LAVALINK_SERVER_SOURCES_YOUTUBE: "false"
+  LAVALINK_SERVER_SOURCES_SOUNDCLOUD: "true"
+  LAVALINK_SERVER_SOURCES_BANDCAMP: "true"
+  LAVALINK_SERVER_SOURCES_TWITCH: "true"
+  LAVALINK_SERVER_SOURCES_VIMEO: "true"
+  LAVALINK_SERVER_SOURCES_HTTP: "true"
+  LAVALINK_SERVER_YOUTUBE_SEARCH_ENABLED: "true"
+  LAVALINK_SERVER_SOUNDCLOUD_SEARCH_ENABLED: "true"
+  LAVALINK_SERVER_FILTERS_ALL: "true"
+  LAVALINK_SERVER_OPUS_ENCODING_QUALITY: "10"
+  LAVALINK_SERVER_RESAMPLING_QUALITY: HIGH
+  LOGGING_LEVEL_ROOT: INFO
+  LOGGING_LEVEL_DEV_LAVALINK_YOUTUBE: INFO
+  METRICS_PROMETHEUS_ENABLED: "false"
+  PLUGINS_YOUTUBE_ENABLED: "true"
+  PLUGINS_YOUTUBE_ALLOWSEARCH: "true"
+  PLUGINS_YOUTUBE_ALLOWDIRECTVIDEOIDS: "true"
+  PLUGINS_YOUTUBE_ALLOWDIRECTPLAYLISTIDS: "true"
+  PLUGINS_YOUTUBE_CLIENTS_0: WEB_REMIX
+  PLUGINS_YOUTUBE_CLIENTS_1: MWEB
+  PLUGINS_YOUTUBE_CLIENTS_2: TVHTML5_SIMPLY
+  PLUGINS_YOUTUBE_CLIENTS_3: WEB
+  PLUGINS_YOUTUBE_REMOTEPOT_URL: http://webpo:8080
+  PLUGINS_YOUTUBE_REMOTEPOT_PASS: "${WEBPO_TOKEN:?Set WEBPO_TOKEN in .env}"
+  PLUGINS_YOUTUBE_REMOTECIPHER_URL: http://yt-cipher:8001
+  PLUGINS_YOUTUBE_REMOTECIPHER_PASSWORD: "${YT_CIPHER_TOKEN:?Set YT_CIPHER_TOKEN in .env}"
+  PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT: DEDSEC-HQ
+  PLUGINS_YOUTUBE_OAUTH_ENABLED: "false"
+  MAGMALINK_VIDEO_ENABLED: "true"
+  MAGMALINK_VIDEO_CACHE_DIR: /opt/MagmaLink/video-cache
+  MAGMALINK_VIDEO_FFMPEG_PATH: ffmpeg
+  MAGMALINK_VIDEO_ALLOW_PRIVATE_NETWORKS: "false"
+
+x-lavalink-common: &lavalink-common
+  image: ghcr.io/cachenetworks/magmalink:latest
+  pull_policy: always
+  restart: unless-stopped
+  depends_on:
+    webpo:
+      condition: service_started
+    yt-cipher:
+      condition: service_started
+  networks:
+    - magmalink
+
+services:
+  webpo:
+    image: ghcr.io/ashton045/webpo-generator:latest
+    container_name: webpo-generator
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8080"
+      WORKERS: "2"
+      QUEUE_SIZE: "64"
+      MAX_PENDING_REQUESTS: "256"
+      REQUEST_TIMEOUT: "30000"
+      CACHE_SIZE: "250"
+      CACHE_TTL: "300000"
+      VISITOR_TTL: "36000000"
+      API_TOKEN: "${WEBPO_TOKEN:?Set WEBPO_TOKEN in .env}"
+    expose:
+      - "8080"
+    networks:
+      - magmalink
+
+  yt-cipher:
+    image: ghcr.io/kikkia/yt-cipher:master
+    container_name: yt-cipher
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8001"
+      API_TOKEN: "${YT_CIPHER_TOKEN:?Set YT_CIPHER_TOKEN in .env}"
+      OVERRIDE_PLAYER_VARIANT: IAS
+    expose:
+      - "8001"
+    networks:
+      - magmalink
+
+  lavalink-01:
+    <<: *lavalink-common
+    container_name: lavalink-01
+    ports:
+      - "9000:2333"
+    environment:
+      <<: *lavalink-environment
+      NODE_ID: "01"
+      SERVER_PORT: "2333"
+      LAVALINK_SERVER_PASSWORD: "${LAVALINK_PASSWORD:?Set LAVALINK_PASSWORD in .env}"
+    volumes:
+      - ./plugins:/opt/MagmaLink/plugins:rw
+      - magmalink-01-logs:/opt/MagmaLink/logs
+      - magmalink-01-video-cache:/opt/MagmaLink/video-cache
+
+  lavalink-02:
+    <<: *lavalink-common
+    container_name: lavalink-02
+    ports:
+      - "9001:2334"
+    environment:
+      <<: *lavalink-environment
+      NODE_ID: "02"
+      SERVER_PORT: "2334"
+      LAVALINK_SERVER_PASSWORD: "${LAVALINK_PASSWORD:?Set LAVALINK_PASSWORD in .env}"
+    volumes:
+      - ./plugins:/opt/MagmaLink/plugins:rw
+      - magmalink-02-logs:/opt/MagmaLink/logs
+      - magmalink-02-video-cache:/opt/MagmaLink/video-cache
+
+networks:
+  magmalink:
+    name: magmalink
+
+volumes:
+  magmalink-01-logs:
+  magmalink-01-video-cache:
+  magmalink-02-logs:
+  magmalink-02-video-cache:

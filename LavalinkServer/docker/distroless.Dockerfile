@@ -6,6 +6,8 @@ WORKDIR /opt/MagmaLink
 # when HLS video packaging is required.
 COPY LavalinkServer/build/libs/MagmaLink.jar MagmaLink.jar
 
+EXPOSE 2333
+
 ENTRYPOINT ["java", "-jar"]
 
 CMD ["MagmaLink.jar"]

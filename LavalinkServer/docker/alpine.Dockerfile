@@ -13,6 +13,8 @@ RUN mkdir -p /opt/MagmaLink/video-cache \
 
 USER lavalink
 
-COPY LavalinkServer/build/libs/MagmaLink-musl.jar MagmaLink.jar
+COPY --chown=lavalink:lavalink LavalinkServer/build/libs/MagmaLink-musl.jar MagmaLink.jar
+
+EXPOSE 2333
 
 ENTRYPOINT ["java", "-jar", "MagmaLink.jar"]

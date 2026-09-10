@@ -4,6 +4,10 @@ on:
   release:
     types: [ published ]
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
     uses: ./.github/workflows/build.yml
@@ -26,20 +30,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Lavalink.jar
+      - name: Download MagmaLink.jar
         uses: actions/download-artifact@v4
         with:
-          name: Lavalink.jar
+          name: MagmaLink.jar
 
-      - name: Download Lavalink-musl.jar
+      - name: Download MagmaLink-musl.jar
         uses: actions/download-artifact@v4
         with:
-          name: Lavalink-musl.jar
+          name: MagmaLink-musl.jar
 
       - name: Upload Artifacts to GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: Lavalink.jar,Lavalink-musl.jar
+          artifacts: MagmaLink.jar,MagmaLink-musl.jar
           allowUpdates: true
           omitBodyDuringUpdate: true
           omitDraftDuringUpdate: true

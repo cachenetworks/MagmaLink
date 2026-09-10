@@ -4,11 +4,12 @@ description: How to run MagmaLink as a Docker container
 
 # Docker
 
-Build the included image locally, or publish it to the container registry used
-by your MagmaLink repository:
+Build the included image locally, or pull the published image from GHCR:
 
 ```bash
 docker build -f LavalinkServer/docker/Dockerfile -t magmalink:local .
+# Published image:
+docker pull ghcr.io/cachenetworks/magmalink:latest
 ```
 
 Install [Docker](https://docs.docker.com/engine/install/) & [Docker Compose](https://docs.docker.com/compose/install/)
@@ -17,16 +18,16 @@ Install [Docker](https://docs.docker.com/engine/install/) & [Docker Compose](htt
 
 | Variant      | Description                                  | Java Version | User  | Group | Example                                       |
 |--------------|----------------------------------------------|--------------|-------|-------|-----------------------------------------------|
-| `Ubuntu`     | Default variant with FFmpeg for HLS video    | 18           | 322   | 322   | `magmalink:local`                             |
+| `Ubuntu`     | Default variant with FFmpeg for HLS video    | 17           | 322   | 322   | `magmalink:local`                             |
 | `Alpine`     | Smaller variant with FFmpeg for HLS video   | 17           | 322   | 322   | Build `alpine.Dockerfile`                    |
 | `Distroless` | Small audio-only variant                    | 17           | 65534 | 65534 | Build `distroless.Dockerfile`                |
 
-Create a `compose.yml` with the following content:
+Create a `compose.yaml` with the following content:
 
-```yaml title="compose.yml"
+```yaml title="compose.yaml"
 services:
   magmalink:
-    image: magmalink:local
+    image: ghcr.io/cachenetworks/magmalink:latest
     container_name: magmalink
     restart: unless-stopped
     environment:
@@ -59,9 +60,9 @@ networks:
     name: magmalink
 ```
 
-Create an `application.yml` file in the same directory as the `compose.yml` file. ([Example here](../configuration/config/file.md#example-applicationyml)) or use environment variables ([Example here](../configuration/config/environment-variables.md#example-environment-variables))
+Create an `application.yml` file in the same directory as the `compose.yaml` file. ([Example here](../configuration/config/file.md#example-applicationyml)) or use environment variables ([Example here](../configuration/config/environment-variables.md#example-environment-variables))
 
-Run `docker compose up -d`. See [Docker Compose Up](https://docs.docker.com/engine/reference/commandline/compose_up/)
+Run `docker compose pull && docker compose up -d`. See [Docker Compose Up](https://docs.docker.com/engine/reference/commandline/compose_up/)
 
 If your bot also runs in a docker container you can make that container join the
 magmalink network and use `magmalink` (service name) as the hostname to connect.

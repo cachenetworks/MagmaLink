@@ -72,6 +72,17 @@ The output is `LavalinkServer/build/libs/MagmaLink.jar`. For HLS video
 packaging, install FFmpeg on the host or use the included standard/Alpine
 Docker image.
 
+## Docker image
+
+The standard image includes FFmpeg for HLS video playback and is published to
+GHCR on every push to `main`:
+
+```bash
+docker pull ghcr.io/cachenetworks/magmalink:latest
+```
+
+The production two-node deployment is available in [`compose.yaml`](compose.yaml).
+
 ## Requirements
 
 * Java 17 LTS or newer required. (we recommend running the latest LTS version or newer)
@@ -127,4 +138,3 @@ Version numbers can come in different combinations, depending on the release typ
     `MAJOR.MINOR.PATCH+BUILD` - Stable release with additional build metadata
     `MAJOR.MINOR.PATCH-PRERELEASE` - Pre-release
     `MAJOR.MINOR.PATCH-PRERELEASE+BUILD` - Pre-release additional build metadata
-

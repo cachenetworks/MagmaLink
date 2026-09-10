@@ -1,4 +1,4 @@
-FROM eclipse-temurin:18-jre-jammy
+FROM eclipse-temurin:17-jre-jammy
 
 # FFmpeg is used by MagmaLink's HLS video plane.
 RUN apt-get update \
@@ -16,6 +16,8 @@ RUN mkdir -p /opt/MagmaLink/video-cache \
 
 USER lavalink
 
-COPY LavalinkServer/build/libs/MagmaLink.jar MagmaLink.jar
+COPY --chown=lavalink:lavalink LavalinkServer/build/libs/MagmaLink.jar MagmaLink.jar
+
+EXPOSE 2333
 
 ENTRYPOINT ["java", "-jar", "MagmaLink.jar"]

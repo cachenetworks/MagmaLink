@@ -1,0 +1,6 @@
+.git/
+.github/
+.gradle/
+**/logs/
+**/video-cache/
+**/node_modules/
