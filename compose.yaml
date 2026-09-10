@@ -21,15 +21,14 @@ x-lavalink-environment: &lavalink-environment
   PLUGINS_YOUTUBE_ALLOWSEARCH: "true"
   PLUGINS_YOUTUBE_ALLOWDIRECTVIDEOIDS: "true"
   PLUGINS_YOUTUBE_ALLOWDIRECTPLAYLISTIDS: "true"
-  PLUGINS_YOUTUBE_CLIENTS_0: WEB_REMIX
-  PLUGINS_YOUTUBE_CLIENTS_1: MWEB
-  PLUGINS_YOUTUBE_CLIENTS_2: TVHTML5_SIMPLY
-  PLUGINS_YOUTUBE_CLIENTS_3: WEB
+  PLUGINS_YOUTUBE_CLIENTS_0: MWEB
+  PLUGINS_YOUTUBE_CLIENTS_1: TVHTML5_SIMPLY
+  PLUGINS_YOUTUBE_CLIENTS_2: WEB
   PLUGINS_YOUTUBE_REMOTEPOT_URL: http://webpo:8080
   PLUGINS_YOUTUBE_REMOTEPOT_PASS: "${WEBPO_TOKEN:?Set WEBPO_TOKEN in .env}"
   PLUGINS_YOUTUBE_REMOTECIPHER_URL: http://yt-cipher:8001
   PLUGINS_YOUTUBE_REMOTECIPHER_PASSWORD: "${YT_CIPHER_TOKEN:?Set YT_CIPHER_TOKEN in .env}"
-  PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT: DEDSEC-HQ
+  PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT: MagmaLink
   PLUGINS_YOUTUBE_OAUTH_ENABLED: "false"
   MAGMALINK_VIDEO_ENABLED: "true"
   MAGMALINK_VIDEO_CACHE_DIR: /opt/Lavalink/video-cache
@@ -50,7 +49,9 @@ x-lavalink-common: &lavalink-common
 
 services:
   webpo:
-    image: ghcr.io/ashton045/webpo-generator:latest
+    build:
+      context: ./webpo-generator
+      dockerfile: Dockerfile
     container_name: webpo-generator
     restart: unless-stopped
     environment:
