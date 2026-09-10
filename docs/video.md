@@ -114,10 +114,12 @@ targets by default to reduce SSRF risk.
 
 ## yt-dlp adapter
 
-The standard and Alpine Docker images include a pinned `yt-dlp` binary and
-enable it by default, so provider URLs such as YouTube can be resolved without
-another service. Disable it with `MAGMALINK_VIDEO_YT_DLP_ENABLED=false` when
-using an external resolver or an audio-only deployment.
+The standard and Alpine Docker images include a pinned `yt-dlp` binary and a
+JavaScript runtime (`deno`). yt-dlp's bundled JavaScript challenge support can
+therefore run in the container, and provider URLs such as YouTube can be
+resolved without another service. Disable it with
+`MAGMALINK_VIDEO_YT_DLP_ENABLED=false` when using an external resolver or an
+audio-only deployment.
 
 ```yaml
 magmalink:
