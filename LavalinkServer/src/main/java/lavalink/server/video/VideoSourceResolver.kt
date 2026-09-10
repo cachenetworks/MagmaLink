@@ -43,16 +43,9 @@ class CompositeVideoSourceResolver(private val config: VideoConfig) : VideoSourc
 
         val direct = runCatching { URI.create(normalized) }.getOrNull()
         if (direct != null && direct.scheme?.lowercase() in setOf("http", "https")) {
-            if (!config.allowDirectUrls) {
-                throw IllegalArgumentException("Direct video URLs are disabled")
+            if (config.allowDirectUrls && VideoUrlClassifier.isLikelyDirectMediaUrl(direct)) {
+                return resolveDirectUrl(normalized, direct)
             }
-
-            VideoUrlPolicy.validate(direct, config.allowPrivateNetworks)
-            return ResolvedVideoSource(
-                identifier = normalized,
-                mediaUrls = listOf(direct),
-                mimeType = guessMimeType(direct)
-            )
         }
 
         config.resolver.url?.trim()?.takeIf { it.isNotEmpty() }?.let {
@@ -63,9 +56,39 @@ class CompositeVideoSourceResolver(private val config: VideoConfig) : VideoSourc
             return resolveWithYtDlp(normalized)
         }
 
+        if (direct != null &&
+            direct.scheme?.lowercase() in setOf("http", "https") &&
+            config.allowDirectUrls &&
+            !VideoUrlClassifier.isProviderPage(direct)
+        ) {
+            VideoUrlPolicy.validate(direct, config.allowPrivateNetworks)
+            return resolveDirectUrl(normalized, direct)
+        }
+
+        if (direct != null &&
+            direct.scheme?.lowercase() in setOf("http", "https") &&
+            !config.allowDirectUrls
+        ) {
+            throw IllegalArgumentException("Direct video URLs are disabled")
+        }
+
         throw IllegalArgumentException(
             "No video resolver can handle '$normalized'. Configure " +
                     "magmalink.video.resolver.url or enable magmalink.video.yt-dlp."
+        )
+    }
+
+    private fun resolveDirectUrl(identifier: String, uri: URI): ResolvedVideoSource {
+        val probe = VideoMediaProbe.probe(
+            uri = uri,
+            allowPrivateNetworks = config.allowPrivateNetworks,
+            connectTimeoutMs = config.resolver.connectTimeoutMs,
+            readTimeoutMs = config.resolver.readTimeoutMs
+        )
+        return ResolvedVideoSource(
+            identifier = identifier,
+            mediaUrls = listOf(uri),
+            mimeType = probe.mimeType ?: guessMimeType(uri)
         )
     }
 

@@ -9,9 +9,14 @@ All routes below use the same `Authorization` header as Lavalink.
 ## Resolve a video
 
 The resolver accepts a direct `http://` or `https://` media URL when
-`allowDirectUrls` is enabled. For provider identifiers such as a YouTube URL,
-configure either an external resolver service or the optional `yt-dlp`
-adapter.
+`allowDirectUrls` is enabled. MagmaLink only treats URLs with a known media
+extension, or an extensionless URL that passes a bounded media probe, as
+direct media. Provider pages such as YouTube, TikTok, Vimeo, and Twitch are
+sent to the external resolver or optional `yt-dlp` adapter instead.
+
+The media probe checks the response body and content type, so an HTML login
+page, bot challenge, or provider page returned with HTTP 200 is rejected
+before a video session is created.
 
 ```http
 GET /magma/v1/videos/load?identifier=https%3A%2F%2Fexample.com%2Fmovie.mp4

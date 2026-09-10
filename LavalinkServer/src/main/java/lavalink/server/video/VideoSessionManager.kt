@@ -172,8 +172,15 @@ class VideoSessionManager(
 
         try {
             connection.connect()
+            if (VideoMediaProbe.isHtmlContentType(connection.contentType)) {
+                connection.disconnect()
+                throw VideoStreamingException(
+                    "The video source returned HTML instead of playable media"
+                )
+            }
         } catch (exception: Exception) {
             connection.disconnect()
+            if (exception is VideoStreamingException) throw exception
             throw VideoStreamingException("Unable to connect to the video source", exception)
         }
         return connection

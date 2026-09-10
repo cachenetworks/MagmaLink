@@ -126,9 +126,31 @@ class VideoRestHandler(
             connection.getHeaderField("Last-Modified")?.let { headers.set("Last-Modified", it) }
             connection.contentLengthLong.takeIf { it >= 0 }?.let { headers.contentLength = it }
 
+            val input = try {
+                connection.inputStream
+            } catch (exception: Exception) {
+                connection.disconnect()
+                throw VideoStreamingException("Unable to read from the video source", exception)
+            }
+            val prefix = try {
+                input.readNBytes(512)
+            } catch (exception: Exception) {
+                input.close()
+                connection.disconnect()
+                throw VideoStreamingException("Unable to read from the video source", exception)
+            }
+            if (VideoMediaProbe.isHtmlPayload(prefix)) {
+                input.close()
+                connection.disconnect()
+                throw VideoStreamingException(
+                    "The video source returned HTML instead of playable media"
+                )
+            }
+
             val body = StreamingResponseBody { output ->
                 try {
-                    connection.inputStream.use { input -> input.copyTo(output) }
+                    output.write(prefix)
+                    input.use { it.copyTo(output) }
                 } finally {
                     connection.disconnect()
                 }
