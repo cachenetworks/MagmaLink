@@ -49,9 +49,7 @@ x-lavalink-common: &lavalink-common
 
 services:
   webpo:
-    build:
-      context: ./webpo-generator
-      dockerfile: Dockerfile
+    image: ghcr.io/ashton045/webpo-generator:latest
     container_name: webpo-generator
     restart: unless-stopped
     environment:
