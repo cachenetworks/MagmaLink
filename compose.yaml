@@ -1,54 +1,4 @@
-name: magmalink
-
-x-lavalink-environment: &lavalink-environment
-  SERVER_HTTP2_ENABLED: "true"
-  LAVALINK_PLUGINS_DIR: /opt/Lavalink/plugins
-  LAVALINK_SERVER_SOURCES_YOUTUBE: "false"
-  LAVALINK_SERVER_SOURCES_SOUNDCLOUD: "true"
-  LAVALINK_SERVER_SOURCES_BANDCAMP: "true"
-  LAVALINK_SERVER_SOURCES_TWITCH: "true"
-  LAVALINK_SERVER_SOURCES_VIMEO: "true"
-  LAVALINK_SERVER_SOURCES_HTTP: "true"
-  LAVALINK_SERVER_YOUTUBE_SEARCH_ENABLED: "true"
-  LAVALINK_SERVER_SOUNDCLOUD_SEARCH_ENABLED: "true"
-  LAVALINK_SERVER_FILTERS_ALL: "true"
-  LAVALINK_SERVER_OPUS_ENCODING_QUALITY: "10"
-  LAVALINK_SERVER_RESAMPLING_QUALITY: HIGH
-  LOGGING_LEVEL_ROOT: INFO
-  LOGGING_LEVEL_DEV_LAVALINK_YOUTUBE: INFO
-  METRICS_PROMETHEUS_ENABLED: "false"
-  PLUGINS_YOUTUBE_ENABLED: "true"
-  PLUGINS_YOUTUBE_ALLOWSEARCH: "true"
-  PLUGINS_YOUTUBE_ALLOWDIRECTVIDEOIDS: "true"
-  PLUGINS_YOUTUBE_ALLOWDIRECTPLAYLISTIDS: "true"
-  PLUGINS_YOUTUBE_CLIENTS_0: MWEB
-  PLUGINS_YOUTUBE_CLIENTS_1: TVHTML5_SIMPLY
-  PLUGINS_YOUTUBE_CLIENTS_2: WEB
-  PLUGINS_YOUTUBE_REMOTEPOT_URL: http://webpo:8080
-  PLUGINS_YOUTUBE_REMOTEPOT_PASS: "${WEBPO_TOKEN:?Set WEBPO_TOKEN in .env}"
-  PLUGINS_YOUTUBE_REMOTECIPHER_URL: http://yt-cipher:8001
-  PLUGINS_YOUTUBE_REMOTECIPHER_PASSWORD: "${YT_CIPHER_TOKEN:?Set YT_CIPHER_TOKEN in .env}"
-  PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT: MagmaLink
-  PLUGINS_YOUTUBE_OAUTH_ENABLED: "false"
-  MAGMALINK_VIDEO_ENABLED: "true"
-  MAGMALINK_VIDEO_CACHE_DIR: /opt/Lavalink/video-cache
-  MAGMALINK_VIDEO_FFMPEG_PATH: ffmpeg
-  MAGMALINK_VIDEO_ALLOW_PRIVATE_NETWORKS: "false"
-  MAGMALINK_VIDEO_YT_DLP_ENABLED: "true"
-  MAGMALINK_VIDEO_YT_DLP_BINARY: yt-dlp
-  MAGMALINK_VIDEO_YT_DLP_FORMAT: "best[ext=mp4]/best"
-
-x-lavalink-common: &lavalink-common
-  image: ghcr.io/cachenetworks/magmalink:latest
-  pull_policy: always
-  restart: unless-stopped
-  depends_on:
-    webpo:
-      condition: service_started
-    yt-cipher:
-      condition: service_started
-  networks:
-    - magmalink
+version: "3.9"
 
 services:
   webpo:
@@ -56,71 +6,217 @@ services:
     container_name: webpo-generator
     restart: unless-stopped
     environment:
-      HOST: 0.0.0.0
-      PORT: "8080"
-      WORKERS: "2"
-      QUEUE_SIZE: "64"
-      MAX_PENDING_REQUESTS: "256"
-      REQUEST_TIMEOUT: "30000"
-      CACHE_SIZE: "250"
-      CACHE_TTL: "300000"
-      VISITOR_TTL: "36000000"
-      API_TOKEN: "${WEBPO_TOKEN:?Set WEBPO_TOKEN in .env}"
+      - HOST=0.0.0.0
+      - PORT=8080
+      - WORKERS=2
+      - QUEUE_SIZE=64
+      - MAX_PENDING_REQUESTS=256
+      - REQUEST_TIMEOUT=30000
+      - CACHE_SIZE=250
+      - CACHE_TTL=300000
+      - VISITOR_TTL=36000000
+      - API_TOKEN=${WEBPO_TOKEN:-ChangeThisWebPoPassword}
     expose:
       - "8080"
-    networks:
-      - magmalink
 
   yt-cipher:
     image: ghcr.io/kikkia/yt-cipher:master
     container_name: yt-cipher
     restart: unless-stopped
     environment:
-      HOST: 0.0.0.0
-      PORT: "8001"
-      API_TOKEN: "${YT_CIPHER_TOKEN:?Set YT_CIPHER_TOKEN in .env}"
-      OVERRIDE_PLAYER_VARIANT: IAS
+      - HOST=0.0.0.0
+      - PORT=8001
+      - API_TOKEN=${YT_CIPHER_TOKEN:-ChangeThisCipherPassword}
+      - OVERRIDE_PLAYER_VARIANT=IAS
     expose:
       - "8001"
-    networks:
-      - magmalink
 
   lavalink-01:
-    <<: *lavalink-common
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2
     container_name: lavalink-01
+    restart: unless-stopped
+    depends_on:
+      - webpo
+      - yt-cipher
     ports:
       - "9000:2333"
     environment:
-      <<: *lavalink-environment
-      NODE_ID: "01"
-      SERVER_PORT: "2333"
-      LAVALINK_SERVER_PASSWORD: "${LAVALINK_PASSWORD:?Set LAVALINK_PASSWORD in .env}"
+      - NODE_ID=01
+      - SERVER_PORT=2333
+      - SERVER_HTTP2_ENABLED=true
+      - LAVALINK_PLUGINS_DIR=/opt/Lavalink/plugins
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD:-SuperSecretPassword}
+      # Disable Lavalink's built-in YouTube source.
+      - LAVALINK_SERVER_SOURCES_YOUTUBE=false
+      - LAVALINK_SERVER_SOURCES_SOUNDCLOUD=true
+      - LAVALINK_SERVER_SOURCES_BANDCAMP=true
+      - LAVALINK_SERVER_SOURCES_TWITCH=true
+      - LAVALINK_SERVER_SOURCES_VIMEO=true
+      - LAVALINK_SERVER_SOURCES_HTTP=true
+      - LAVALINK_SERVER_YOUTUBE_SEARCH_ENABLED=true
+      - LAVALINK_SERVER_SOUNDCLOUD_SEARCH_ENABLED=true
+      - LAVALINK_SERVER_FILTERS_ALL=true
+      - LAVALINK_SERVER_OPUS_ENCODING_QUALITY=10
+      - LAVALINK_SERVER_RESAMPLING_QUALITY=HIGH
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_DEV_LAVALINK_YOUTUBE=INFO
+      - METRICS_PROMETHEUS_ENABLED=false
+      # youtube-source plugin.
+      - PLUGINS_YOUTUBE_ENABLED=true
+      - PLUGINS_YOUTUBE_ALLOWSEARCH=true
+      - PLUGINS_YOUTUBE_ALLOWDIRECTVIDEOIDS=true
+      - PLUGINS_YOUTUBE_ALLOWDIRECTPLAYLISTIDS=true
+      # WebPo / PoToken.
+      - PLUGINS_YOUTUBE_REMOTEPOT_URL=http://webpo:8080
+      - PLUGINS_YOUTUBE_REMOTEPOT_PASS=${WEBPO_TOKEN:-ChangeThisWebPoPassword}
+      # Remote signature cipher.
+      - PLUGINS_YOUTUBE_REMOTECIPHER_URL=http://yt-cipher:8001
+      - PLUGINS_YOUTUBE_REMOTECIPHER_PASSWORD=${YT_CIPHER_TOKEN:-ChangeThisCipherPassword}
+      - PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT=DEDSEC-HQ
+      # OAuth is intentionally disabled initially.
+      - PLUGINS_YOUTUBE_OAUTH_ENABLED=false
     volumes:
       - ./plugins:/opt/Lavalink/plugins:rw
-      - magmalink-01-logs:/opt/Lavalink/logs
-      - magmalink-01-video-cache:/opt/Lavalink/video-cache
+      - ./logs/node01:/opt/Lavalink/logs
 
   lavalink-02:
-    <<: *lavalink-common
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2
     container_name: lavalink-02
+    restart: unless-stopped
+    depends_on:
+      - webpo
+      - yt-cipher
     ports:
       - "9001:2334"
     environment:
-      <<: *lavalink-environment
-      NODE_ID: "02"
-      SERVER_PORT: "2334"
-      LAVALINK_SERVER_PASSWORD: "${LAVALINK_PASSWORD:?Set LAVALINK_PASSWORD in .env}"
+      - NODE_ID=02
+      - SERVER_PORT=2334
+      - SERVER_HTTP2_ENABLED=true
+      - LAVALINK_PLUGINS_DIR=/opt/Lavalink/plugins
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD:-SuperSecretPassword}
+      - LAVALINK_SERVER_SOURCES_YOUTUBE=false
+      - LAVALINK_SERVER_SOURCES_SOUNDCLOUD=true
+      - LAVALINK_SERVER_SOURCES_BANDCAMP=true
+      - LAVALINK_SERVER_SOURCES_TWITCH=true
+      - LAVALINK_SERVER_SOURCES_VIMEO=true
+      - LAVALINK_SERVER_SOURCES_HTTP=true
+      - LAVALINK_SERVER_YOUTUBE_SEARCH_ENABLED=true
+      - LAVALINK_SERVER_SOUNDCLOUD_SEARCH_ENABLED=true
+      - LAVALINK_SERVER_FILTERS_ALL=true
+      - LAVALINK_SERVER_OPUS_ENCODING_QUALITY=10
+      - LAVALINK_SERVER_RESAMPLING_QUALITY=HIGH
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_DEV_LAVALINK_YOUTUBE=INFO
+      - METRICS_PROMETHEUS_ENABLED=false
+      - PLUGINS_YOUTUBE_ENABLED=true
+      - PLUGINS_YOUTUBE_ALLOWSEARCH=true
+      - PLUGINS_YOUTUBE_ALLOWDIRECTVIDEOIDS=true
+      - PLUGINS_YOUTUBE_ALLOWDIRECTPLAYLISTIDS=true
+      - PLUGINS_YOUTUBE_REMOTEPOT_URL=http://webpo:8080
+      - PLUGINS_YOUTUBE_REMOTEPOT_PASS=${WEBPO_TOKEN:-ChangeThisWebPoPassword}
+      - PLUGINS_YOUTUBE_REMOTECIPHER_URL=http://yt-cipher:8001
+      - PLUGINS_YOUTUBE_REMOTECIPHER_PASSWORD=${YT_CIPHER_TOKEN:-ChangeThisCipherPassword}
+      - PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT=DEDSEC-HQ
+      - PLUGINS_YOUTUBE_OAUTH_ENABLED=false
     volumes:
       - ./plugins:/opt/Lavalink/plugins:rw
-      - magmalink-02-logs:/opt/Lavalink/logs
-      - magmalink-02-video-cache:/opt/Lavalink/video-cache
+      - ./logs/node02:/opt/Lavalink/logs
+
+  lavalink-03:
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2
+    container_name: lavalink-03
+    restart: unless-stopped
+    depends_on:
+      - webpo
+      - yt-cipher
+    ports:
+      - "9002:2335"
+    environment:
+      - NODE_ID=03
+      - SERVER_PORT=2335
+      - SERVER_HTTP2_ENABLED=true
+      - LAVALINK_PLUGINS_DIR=/opt/Lavalink/plugins
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD:-SuperSecretPassword}
+      - LAVALINK_SERVER_SOURCES_YOUTUBE=false
+      - LAVALINK_SERVER_SOURCES_SOUNDCLOUD=true
+      - LAVALINK_SERVER_SOURCES_BANDCAMP=true
+      - LAVALINK_SERVER_SOURCES_TWITCH=true
+      - LAVALINK_SERVER_SOURCES_VIMEO=true
+      - LAVALINK_SERVER_SOURCES_HTTP=true
+      - LAVALINK_SERVER_YOUTUBE_SEARCH_ENABLED=true
+      - LAVALINK_SERVER_SOUNDCLOUD_SEARCH_ENABLED=true
+      - LAVALINK_SERVER_FILTERS_ALL=true
+      - LAVALINK_SERVER_OPUS_ENCODING_QUALITY=10
+      - LAVALINK_SERVER_RESAMPLING_QUALITY=HIGH
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_DEV_LAVALINK_YOUTUBE=INFO
+      - METRICS_PROMETHEUS_ENABLED=false
+      - PLUGINS_YOUTUBE_ENABLED=true
+      - PLUGINS_YOUTUBE_ALLOWSEARCH=true
+      - PLUGINS_YOUTUBE_ALLOWDIRECTVIDEOIDS=true
+      - PLUGINS_YOUTUBE_ALLOWDIRECTPLAYLISTIDS=true
+      - PLUGINS_YOUTUBE_REMOTEPOT_URL=http://webpo:8080
+      - PLUGINS_YOUTUBE_REMOTEPOT_PASS=${WEBPO_TOKEN:-ChangeThisWebPoPassword}
+      - PLUGINS_YOUTUBE_REMOTECIPHER_URL=http://yt-cipher:8001
+      - PLUGINS_YOUTUBE_REMOTECIPHER_PASSWORD=${YT_CIPHER_TOKEN:-ChangeThisCipherPassword}
+      - PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT=DEDSEC-HQ
+      - PLUGINS_YOUTUBE_OAUTH_ENABLED=false
+    volumes:
+      - ./plugins:/opt/Lavalink/plugins:rw
+      - ./logs/node03:/opt/Lavalink/logs
+
+  lavalink-04:
+    image: ghcr.io/cachenetworks/magmalink:latest
+    container_name: lavalink-04
+    restart: unless-stopped
+    depends_on:
+      - webpo
+      - yt-cipher
+    ports:
+      - "9003:2336"
+    environment:
+      - NODE_ID=04
+      - SERVER_PORT=2336
+      - SERVER_HTTP2_ENABLED=true
+      - LAVALINK_PLUGINS_DIR=/opt/Lavalink/plugins
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD:-SuperSecretPassword}
+      - LAVALINK_SERVER_SOURCES_YOUTUBE=false
+      - LAVALINK_SERVER_SOURCES_SOUNDCLOUD=true
+      - LAVALINK_SERVER_SOURCES_BANDCAMP=true
+      - LAVALINK_SERVER_SOURCES_TWITCH=true
+      - LAVALINK_SERVER_SOURCES_VIMEO=true
+      - LAVALINK_SERVER_SOURCES_HTTP=true
+      - LAVALINK_SERVER_YOUTUBE_SEARCH_ENABLED=true
+      - LAVALINK_SERVER_SOUNDCLOUD_SEARCH_ENABLED=true
+      - LAVALINK_SERVER_FILTERS_ALL=true
+      - LAVALINK_SERVER_OPUS_ENCODING_QUALITY=10
+      - LAVALINK_SERVER_RESAMPLING_QUALITY=HIGH
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_DEV_LAVALINK_YOUTUBE=INFO
+      - METRICS_PROMETHEUS_ENABLED=false
+      - PLUGINS_YOUTUBE_ENABLED=true
+      - PLUGINS_YOUTUBE_ALLOWSEARCH=true
+      - PLUGINS_YOUTUBE_ALLOWDIRECTVIDEOIDS=true
+      - PLUGINS_YOUTUBE_ALLOWDIRECTPLAYLISTIDS=true
+      - PLUGINS_YOUTUBE_REMOTEPOT_URL=http://webpo:8080
+      - PLUGINS_YOUTUBE_REMOTEPOT_PASS=${WEBPO_TOKEN:-ChangeThisWebPoPassword}
+      - PLUGINS_YOUTUBE_REMOTECIPHER_URL=http://yt-cipher:8001
+      - PLUGINS_YOUTUBE_REMOTECIPHER_PASSWORD=${YT_CIPHER_TOKEN:-ChangeThisCipherPassword}
+      - PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT=DEDSEC-HQ
+      - PLUGINS_YOUTUBE_OAUTH_ENABLED=false
+      # MagmaLink video resolver. The image bundles yt-dlp and Deno.
+      - MAGMALINK_VIDEO_ENABLED=true
+      - MAGMALINK_VIDEO_CACHE_DIR=/opt/Lavalink/video-cache
+      - MAGMALINK_VIDEO_FFMPEG_PATH=ffmpeg
+      - MAGMALINK_VIDEO_ALLOW_PRIVATE_NETWORKS=false
+      - MAGMALINK_VIDEO_YT_DLP_ENABLED=true
+      - MAGMALINK_VIDEO_YT_DLP_BINARY=yt-dlp
+      - MAGMALINK_VIDEO_YT_DLP_FORMAT=best[ext=mp4]/best
+    volumes:
+      - ./plugins:/opt/Lavalink/plugins:rw
+      - ./logs/node04:/opt/Lavalink/logs
+      - ./video-cache/node04:/opt/Lavalink/video-cache
 
 networks:
-  magmalink:
-    name: magmalink
-
-volumes:
-  magmalink-01-logs:
-  magmalink-01-video-cache:
-  magmalink-02-logs:
-  magmalink-02-video-cache:
+  default:
+    name: dedsec-lavalink
