@@ -1,5 +1,6 @@
 package lavalink.server.video
 
+import dev.arbjerg.lavalink.protocol.v4.json
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.core.io.FileSystemResource
@@ -94,10 +95,10 @@ class VideoRestHandler(
     }
 
     @GetMapping("/{videoId}/stream")
-    fun stream(@PathVariable videoId: String, request: HttpServletRequest): ResponseEntity<Any> {
+    fun stream(@PathVariable videoId: String, request: HttpServletRequest): ResponseEntity<StreamingResponseBody> {
         val range = request.getHeader("Range")
         if (range != null && !RANGE_PATTERN.matches(range)) {
-            return error(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE, "Invalid byte range")
+            return streamError(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE, "Invalid byte range")
         }
 
         return try {
@@ -107,7 +108,7 @@ class VideoRestHandler(
 
             if (responseCode >= 400) {
                 connection.disconnect()
-                return error(
+                return streamError(
                     HttpStatus.resolve(responseCode) ?: HttpStatus.BAD_GATEWAY,
                     "The video source returned HTTP $responseCode"
                 )
@@ -133,14 +134,14 @@ class VideoRestHandler(
                 }
             }
 
-            ResponseEntity.status(responseCode).headers(headers).body<Any>(body)
+            ResponseEntity.status(responseCode).headers(headers).body(body)
         } catch (exception: VideoSessionNotFound) {
-            error(HttpStatus.NOT_FOUND, exception.message ?: "Video session not found")
+            streamError(HttpStatus.NOT_FOUND, exception.message ?: "Video session not found")
         } catch (exception: VideoStreamingException) {
-            error(HttpStatus.BAD_GATEWAY, exception.message ?: "Unable to stream video")
+            streamError(HttpStatus.BAD_GATEWAY, exception.message ?: "Unable to stream video")
         } catch (exception: Exception) {
             log.error("Unable to proxy progressive video session {}", videoId, exception)
-            error(HttpStatus.BAD_GATEWAY, "Unable to stream video")
+            streamError(HttpStatus.BAD_GATEWAY, "Unable to stream video")
         }
     }
 
@@ -209,6 +210,26 @@ class VideoRestHandler(
         return ResponseEntity.status(status).body<Any>(
             VideoErrorResponse(data = VideoErrorData(message = message))
         )
+    }
+
+    /**
+     * Keep the stream endpoint's declared body type as StreamingResponseBody.
+     * Spring selects its async streaming return-value handler from the method's
+     * declared generic type; ResponseEntity<Any> causes the streaming body to be
+     * treated like a normal object and can turn otherwise-valid playback into
+     * an HTTP 500 before a single media byte is written.
+     */
+    private fun streamError(status: HttpStatus, message: String): ResponseEntity<StreamingResponseBody> {
+        val payload = json.encodeToString(
+            VideoErrorResponse.serializer(),
+            VideoErrorResponse(data = VideoErrorData(message = message))
+        ).toByteArray(StandardCharsets.UTF_8)
+        val body = StreamingResponseBody { output -> output.write(payload) }
+
+        return ResponseEntity.status(status)
+            .contentType(MediaType.APPLICATION_JSON)
+            .contentLength(payload.size.toLong())
+            .body(body)
     }
 
     companion object {
