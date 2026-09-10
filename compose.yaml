@@ -2,6 +2,7 @@ name: magmalink
 
 x-lavalink-environment: &lavalink-environment
   SERVER_HTTP2_ENABLED: "true"
+  LAVALINK_PLUGINS_DIR: /opt/Lavalink/plugins
   LAVALINK_SERVER_SOURCES_YOUTUBE: "false"
   LAVALINK_SERVER_SOURCES_SOUNDCLOUD: "true"
   LAVALINK_SERVER_SOURCES_BANDCAMP: "true"
@@ -31,7 +32,7 @@ x-lavalink-environment: &lavalink-environment
   PLUGINS_YOUTUBE_REMOTECIPHER_USERAGENT: DEDSEC-HQ
   PLUGINS_YOUTUBE_OAUTH_ENABLED: "false"
   MAGMALINK_VIDEO_ENABLED: "true"
-  MAGMALINK_VIDEO_CACHE_DIR: /opt/MagmaLink/video-cache
+  MAGMALINK_VIDEO_CACHE_DIR: /opt/Lavalink/video-cache
   MAGMALINK_VIDEO_FFMPEG_PATH: ffmpeg
   MAGMALINK_VIDEO_ALLOW_PRIVATE_NETWORKS: "false"
 
@@ -93,9 +94,9 @@ services:
       SERVER_PORT: "2333"
       LAVALINK_SERVER_PASSWORD: "${LAVALINK_PASSWORD:?Set LAVALINK_PASSWORD in .env}"
     volumes:
-      - ./plugins:/opt/MagmaLink/plugins:rw
-      - magmalink-01-logs:/opt/MagmaLink/logs
-      - magmalink-01-video-cache:/opt/MagmaLink/video-cache
+      - ./plugins:/opt/Lavalink/plugins:rw
+      - magmalink-01-logs:/opt/Lavalink/logs
+      - magmalink-01-video-cache:/opt/Lavalink/video-cache
 
   lavalink-02:
     <<: *lavalink-common
@@ -108,9 +109,9 @@ services:
       SERVER_PORT: "2334"
       LAVALINK_SERVER_PASSWORD: "${LAVALINK_PASSWORD:?Set LAVALINK_PASSWORD in .env}"
     volumes:
-      - ./plugins:/opt/MagmaLink/plugins:rw
-      - magmalink-02-logs:/opt/MagmaLink/logs
-      - magmalink-02-video-cache:/opt/MagmaLink/video-cache
+      - ./plugins:/opt/Lavalink/plugins:rw
+      - magmalink-02-logs:/opt/Lavalink/logs
+      - magmalink-02-video-cache:/opt/Lavalink/video-cache
 
 networks:
   magmalink:

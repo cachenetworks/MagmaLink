@@ -9,10 +9,10 @@ RUN apt-get update \
 RUN groupadd -g 322 lavalink && \
     useradd -r -u 322 -g lavalink lavalink
 
-WORKDIR /opt/MagmaLink
+WORKDIR /opt/Lavalink
 
-RUN mkdir -p /opt/MagmaLink/video-cache \
-    && chown -R lavalink:lavalink /opt/MagmaLink
+RUN mkdir -p /opt/Lavalink/plugins /opt/Lavalink/logs /opt/Lavalink/video-cache \
+    && chown -R lavalink:lavalink /opt/Lavalink
 
 USER lavalink
 

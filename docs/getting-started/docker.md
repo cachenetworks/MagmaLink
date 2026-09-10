@@ -39,11 +39,11 @@ services:
       # - LAVALINK_SERVER_PASSWORD=youshallnotpass
     volumes:
       # mount application.yml from the same directory, if you want to use environment variables remove this line below
-      - ./application.yml:/opt/MagmaLink/application.yml
+      - ./application.yml:/opt/Lavalink/application.yml
       # persist plugins between restarts, make sure to create the folder & set the correct permissions and user/group id mentioned above
-      - ./plugins/:/opt/MagmaLink/plugins/
+      - ./plugins/:/opt/Lavalink/plugins/
       # persist generated HLS segments; the container user is UID/GID 322
-      - ./video-cache/:/opt/MagmaLink/video-cache/
+      - ./video-cache/:/opt/Lavalink/video-cache/
     networks:
       - magmalink
     expose:

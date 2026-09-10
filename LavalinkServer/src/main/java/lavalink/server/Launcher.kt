@@ -134,6 +134,7 @@ object Launcher {
 
     private fun launchMain(parent: ConfigurableApplicationContext, args: Array<String>) {
         val pluginManager = parent.getBean(PluginManager::class.java)
+        Thread.currentThread().contextClassLoader = pluginManager.classLoader
         val properties = Properties()
         properties["componentScan"] = pluginManager.pluginManifests.map { it.path }
             .toMutableList().apply { add("lavalink.server") }

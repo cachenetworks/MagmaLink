@@ -1,5 +1,6 @@
 package lavalink.server.bootstrap
 
+import dev.arbjerg.lavalink.api.AudioPluginInfoModifier
 import dev.arbjerg.lavalink.protocol.v4.Version
 import nl.adaptivity.xmlutil.core.KtXmlReader
 import org.slf4j.Logger
@@ -38,14 +39,17 @@ class PluginManager(val config: PluginsConfig) {
     private fun manageDownloads() {
         if (config.plugins.isEmpty()) return
 
-        val directory = File(config.pluginsDir)
-        directory.mkdir()
+        val directory = ensurePluginDirectory()
 
         val pluginJars = directory.listFiles()?.filter { it.extension == "jar" }
             ?.flatMap { file ->
-                JarFile(file).use { jar ->
-                    loadPluginManifests(jar).map { manifest -> PluginJar(manifest, file) }
-                }
+                runCatching {
+                    JarFile(file).use { jar ->
+                        loadPluginManifests(jar).map { manifest -> PluginJar(manifest, file) }
+                    }
+                }.onFailure {
+                    log.warn("Unable to inspect plugin jar '${file.path}', ignoring it during plugin management", it)
+                }.getOrDefault(emptyList())
             }
             ?.onEach { log.info("Found plugin '${it.manifest.name}' version '${it.manifest.version}'") }
             ?: return
@@ -178,12 +182,41 @@ class PluginManager(val config: PluginsConfig) {
             ?.takeIf { it.isNotEmpty() }
             ?: return emptyList()
 
+        val manifestsByJar = jarsToLoad.associateWith { file ->
+            runCatching {
+                JarFile(file).use { jar -> loadPluginManifests(jar) }
+            }.getOrElse { exception ->
+                throw RuntimeException("Unable to inspect plugin jar ${file.path}", exception)
+            }
+        }
+
+        val pluginJars = manifestsByJar.filterValues { it.isNotEmpty() }.keys
+        val supportJars = manifestsByJar.filterValues { it.isEmpty() }.keys
+        supportJars.forEach { log.debug("Adding plugin support library '{}' to the plugin classloader", it.name) }
+
+        // Use the loader that owns the Lavalink plugin API as the parent. This
+        // keeps external plugins compatible with the API bundled in the
+        // executable MagmaLink jar, including Spring Boot's nested-jar loader.
+        val pluginApiClassLoader = AudioPluginInfoModifier::class.java.classLoader
+            ?: javaClass.classLoader
+            ?: ClassLoader.getSystemClassLoader()
         classLoader = URLClassLoader.newInstance(
-            jarsToLoad.map { URL("jar:file:${it.absolutePath}!/") }.toTypedArray(),
-            javaClass.classLoader
+            jarsToLoad.map { it.toURI().toURL() }.toTypedArray(),
+            pluginApiClassLoader
         )
 
-        return jarsToLoad.flatMap { loadJar(it, classLoader) }
+        return pluginJars.flatMap { loadJar(it, classLoader) }
+    }
+
+    private fun ensurePluginDirectory(): File {
+        val directory = File(config.pluginsDir)
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw RuntimeException("Failed to create plugin directory ${directory.path}")
+        }
+        if (!directory.isDirectory) {
+            throw RuntimeException("Plugin path is not a directory: ${directory.path}")
+        }
+        return directory
     }
 
     private fun loadJar(file: File, cl: ClassLoader): List<PluginManifest> {

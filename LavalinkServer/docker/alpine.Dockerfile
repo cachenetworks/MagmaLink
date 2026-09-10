@@ -6,10 +6,10 @@ RUN apk add --no-cache libgcc ffmpeg
 RUN addgroup -g 322 -S lavalink && \
     adduser -u 322 -S lavalink lavalink
 
-WORKDIR /opt/MagmaLink
+WORKDIR /opt/Lavalink
 
-RUN mkdir -p /opt/MagmaLink/video-cache \
-    && chown -R lavalink:lavalink /opt/MagmaLink
+RUN mkdir -p /opt/Lavalink/plugins /opt/Lavalink/logs /opt/Lavalink/video-cache \
+    && chown -R lavalink:lavalink /opt/Lavalink
 
 USER lavalink
 
