@@ -7,7 +7,7 @@ ARG YT_DLP_VERSION=2026.08.19
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl \
     && case "${TARGETARCH}" in \
-         amd64) YT_DLP_ASSET="yt-dlp_linux"; YT_DLP_SHA256="58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230d" ;; \
+         amd64) YT_DLP_ASSET="yt-dlp_linux"; YT_DLP_SHA256="58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230a" ;; \
          arm64) YT_DLP_ASSET="yt-dlp_linux_aarch64"; YT_DLP_SHA256="b16e4dab368a816cd05d477d698a605a6ae87ccee1c8ffd38fa21d7254141fcc" ;; \
          *) echo "Unsupported yt-dlp architecture: ${TARGETARCH}" >&2; exit 1 ;; \
        esac \
