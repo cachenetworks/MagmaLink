@@ -112,9 +112,12 @@ For adaptive providers, return `videoUrl` and `audioUrl` instead of
 `streamUrl`. MagmaLink validates returned URLs and blocks private/local network
 targets by default to reduce SSRF risk.
 
-## Optional yt-dlp adapter
+## yt-dlp adapter
 
-Install `yt-dlp` beside the MagmaLink process and enable it:
+The standard and Alpine Docker images include a pinned `yt-dlp` binary and
+enable it by default, so provider URLs such as YouTube can be resolved without
+another service. Disable it with `MAGMALINK_VIDEO_YT_DLP_ENABLED=false` when
+using an external resolver or an audio-only deployment.
 
 ```yaml
 magmalink:
@@ -124,6 +127,9 @@ magmalink:
       binary: yt-dlp
       format: "best[ext=mp4]/best"
 ```
+
+For a standalone JAR deployment, install `yt-dlp` on the host and keep
+`binary` on the process `PATH`, or set it to an absolute path.
 
 Provider availability, login requirements, rate limits, and content rights
 remain the responsibility of the operator and the resolver configuration.

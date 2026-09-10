@@ -36,7 +36,7 @@ class ResolverConfig {
 }
 
 class YtDlpConfig {
-    var enabled: Boolean = false
+    var enabled: Boolean = true
     var binary: String = "yt-dlp"
     var format: String = "best[ext=mp4]/best"
     var timeoutSeconds: Long = 60

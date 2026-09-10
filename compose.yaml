@@ -34,6 +34,9 @@ x-lavalink-environment: &lavalink-environment
   MAGMALINK_VIDEO_CACHE_DIR: /opt/Lavalink/video-cache
   MAGMALINK_VIDEO_FFMPEG_PATH: ffmpeg
   MAGMALINK_VIDEO_ALLOW_PRIVATE_NETWORKS: "false"
+  MAGMALINK_VIDEO_YT_DLP_ENABLED: "true"
+  MAGMALINK_VIDEO_YT_DLP_BINARY: yt-dlp
+  MAGMALINK_VIDEO_YT_DLP_FORMAT: "best[ext=mp4]/best"
 
 x-lavalink-common: &lavalink-common
   image: ghcr.io/cachenetworks/magmalink:latest
