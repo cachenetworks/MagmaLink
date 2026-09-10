@@ -64,7 +64,7 @@ class VideoSessionManager(
         )
     }
 
-    fun create(identifier: String): VideoSession {
+    internal fun create(identifier: String): VideoSession {
         if (!config.enabled) {
             throw VideoStreamingException("Video streaming is disabled")
         }
@@ -93,7 +93,7 @@ class VideoSessionManager(
         return true
     }
 
-    fun require(id: String): VideoSession {
+    internal fun require(id: String): VideoSession {
         val session = sessions[id] ?: throw VideoSessionNotFound("Video session '$id' was not found")
         session.touch()
         return session
@@ -108,7 +108,7 @@ class VideoSessionManager(
         return true
     }
 
-    fun ensureHls(id: String): VideoSession {
+    internal fun ensureHls(id: String): VideoSession {
         val session = require(id)
         synchronized(session) {
             val playlist = session.directory.resolve("index.m3u8")

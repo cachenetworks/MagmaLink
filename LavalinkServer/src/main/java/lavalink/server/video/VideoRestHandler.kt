@@ -49,10 +49,10 @@ class VideoRestHandler(
             val body = sessions.readManifest(videoId)
             val session = sessions.require(videoId)
             val signedBody = signManifest(body, session.accessToken)
-            ResponseEntity.ok<Any>()
+            ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/vnd.apple.mpegurl"))
                 .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
-                .body(signedBody)
+                .body<Any>(signedBody)
         } catch (exception: VideoSessionNotFound) {
             error(HttpStatus.NOT_FOUND, exception.message ?: "Video session not found")
         } catch (exception: VideoStreamingException) {
@@ -79,7 +79,7 @@ class VideoRestHandler(
             val headers = HttpHeaders()
             headers.contentLength = Files.size(path)
             headers.cacheControl = "public, max-age=600"
-            ResponseEntity.ok<Any>()
+            ResponseEntity.ok()
                 .headers(headers)
                 .contentType(mediaTypeFor(fileName))
                 .body(resource)

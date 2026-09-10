@@ -42,7 +42,7 @@ class CompositeVideoSourceResolver(private val config: VideoConfig) : VideoSourc
         require(normalized.isNotEmpty()) { "Video identifier must not be empty" }
 
         val direct = runCatching { URI.create(normalized) }.getOrNull()
-        if (direct?.scheme?.lowercase() in setOf("http", "https")) {
+        if (direct != null && direct.scheme?.lowercase() in setOf("http", "https")) {
             if (!config.allowDirectUrls) {
                 throw IllegalArgumentException("Direct video URLs are disabled")
             }
