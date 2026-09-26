@@ -155,23 +155,16 @@ class VideoSessionManager(
         }
 
         val uri = session.source.mediaUrls.single()
-        VideoUrlPolicy.validate(uri, config.allowPrivateNetworks)
-        val connection = (uri.toURL().openConnection() as HttpURLConnection).apply {
-            connectTimeout = config.resolver.connectTimeoutMs.coerceAtLeast(100).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-            readTimeout = config.resolver.readTimeoutMs.coerceAtLeast(100).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-            instanceFollowRedirects = true
-            requestMethod = "GET"
-
-            session.source.headers.forEach { (key, value) ->
-                if (key !in setOf("Host", "Content-Length", "Connection", "Range")) {
-                    setRequestProperty(key, value)
-                }
-            }
-            if (range != null) setRequestProperty("Range", range)
+        val connection = try {
+            VideoMediaProbe.openConnection(
+                uri, config.allowPrivateNetworks,
+                config.resolver.connectTimeoutMs, config.resolver.readTimeoutMs,
+                session.source.headers, range
+            )
+        } catch (exception: Exception) {
+            throw VideoStreamingException("Unable to connect to the video source", exception)
         }
-
         try {
-            connection.connect()
             if (VideoMediaProbe.isHtmlContentType(connection.contentType)) {
                 connection.disconnect()
                 throw VideoStreamingException(

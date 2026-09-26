@@ -36,21 +36,21 @@ internal object VideoMediaProbe {
         uri: URI,
         allowPrivateNetworks: Boolean,
         connectTimeoutMs: Long,
-        readTimeoutMs: Long
+        readTimeoutMs: Long,
+        headers: Map<String, String> = emptyMap()
     ): Result {
         VideoUrlPolicy.validate(uri, allowPrivateNetworks)
-        val connection = (uri.toURL().openConnection() as HttpURLConnection).apply {
-            connectTimeout = connectTimeoutMs.coerceAtLeast(100).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-            readTimeout = readTimeoutMs.coerceAtLeast(100).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-            instanceFollowRedirects = true
-            requestMethod = "GET"
-            setRequestProperty("Accept", "video/*,audio/*,application/vnd.apple.mpegurl,application/dash+xml,application/octet-stream")
-            setRequestProperty("Range", "bytes=0-511")
-            setRequestProperty("User-Agent", "MagmaLink/4.2.2")
-        }
+        // Some otherwise-valid CDNs reject Range probes. Retry once with a
+        // bounded ordinary GET; the response body is never downloaded in full.
+        var connection = openConnection(uri, allowPrivateNetworks, connectTimeoutMs, readTimeoutMs, headers, "bytes=0-511")
 
         try {
-            val responseCode = connection.responseCode
+            var responseCode = connection.responseCode
+            if (responseCode in setOf(400, 403, 405, 416, 501)) {
+                connection.disconnect()
+                connection = openConnection(uri, allowPrivateNetworks, connectTimeoutMs, readTimeoutMs, headers)
+                responseCode = connection.responseCode
+            }
             require(responseCode in 200..299 && responseCode != HttpURLConnection.HTTP_NO_CONTENT) {
                 "Direct video source returned HTTP $responseCode"
             }
@@ -60,9 +60,8 @@ internal object VideoMediaProbe {
                 ?.trim()
                 ?.lowercase()
                 ?.takeIf { it.isNotEmpty() }
-            val sample = runCatching {
-                connection.inputStream.use { it.readNBytes(512) }
-            }.getOrDefault(ByteArray(0))
+            val sample = connection.inputStream.use { it.readNBytes(512) }
+            require(sample.isNotEmpty()) { "Direct video source returned an empty response" }
 
             require(!isHtmlContentType(contentType) && !looksLikeHtml(sample)) {
                 "Direct video source returned HTML instead of playable media"
@@ -75,14 +74,13 @@ internal object VideoMediaProbe {
                     contentType in playlistContentTypes ||
                     contentType in setOf("application/ogg", "application/mp4"))
 
-            require(hasMediaContentType || pathMimeType != null || looksLikeMedia(sample)) {
+            // A .mp4 suffix alone cannot authenticate a text/plain error page.
+            val genericBinary = contentType == null || contentType == "application/octet-stream"
+            require(hasMediaContentType || looksLikeMedia(sample) || (genericBinary && pathMimeType != null)) {
                 "Direct video source did not return playable media" +
                     (contentType?.let { " (Content-Type: $it)" } ?: "")
             }
 
-            runCatching { connection.url.toURI() }.getOrNull()?.let { finalUri ->
-                VideoUrlPolicy.validate(finalUri, allowPrivateNetworks)
-            }
             return Result(contentType ?: pathMimeType)
         } catch (exception: IllegalArgumentException) {
             throw exception
@@ -92,6 +90,50 @@ internal object VideoMediaProbe {
             connection.disconnect()
         }
     }
+
+    /** Validate each redirect before following it, for probes and playback. */
+    internal fun openConnection(
+        uri: URI,
+        allowPrivateNetworks: Boolean,
+        connectTimeoutMs: Long,
+        readTimeoutMs: Long,
+        headers: Map<String, String>,
+        range: String? = null
+    ): HttpURLConnection {
+        var target = uri
+        repeat(6) {
+            VideoUrlPolicy.validate(target, allowPrivateNetworks)
+            val connection = (target.toURL().openConnection() as HttpURLConnection).apply {
+                connectTimeout = connectTimeoutMs.coerceAtLeast(100).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                readTimeout = readTimeoutMs.coerceAtLeast(100).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                instanceFollowRedirects = false
+                requestMethod = "GET"
+                setRequestProperty("Accept", "video/*,audio/*,application/vnd.apple.mpegurl,application/dash+xml,application/octet-stream")
+                setRequestProperty("User-Agent", "MagmaLink/4.2.2")
+                headers.forEach { (key, value) ->
+                    val forbidden = key.lowercase() in setOf("host", "content-length", "connection", "range")
+                    val sensitiveCrossOrigin = !sameOrigin(uri, target) &&
+                        key.lowercase() in setOf("authorization", "cookie", "proxy-authorization")
+                    if (!forbidden && !sensitiveCrossOrigin &&
+                        !key.contains('\r') && !key.contains('\n') &&
+                        !value.contains('\r') && !value.contains('\n')) {
+                        setRequestProperty(key, value)
+                    }
+                }
+                if (range != null) setRequestProperty("Range", range)
+            }
+            if (connection.responseCode !in setOf(301, 302, 303, 307, 308)) return connection
+            val location = connection.getHeaderField("Location")
+            connection.disconnect()
+            require(!location.isNullOrBlank()) { "Video source redirected without a Location header" }
+            target = target.resolve(location)
+        }
+        throw IllegalArgumentException("Video source redirected too many times")
+    }
+
+    private fun sameOrigin(first: URI, second: URI) =
+        first.scheme.equals(second.scheme, ignoreCase = true) &&
+            first.host.equals(second.host, ignoreCase = true) && first.port == second.port
 
     private fun mimeTypeFromPath(uri: URI): String? {
         return when (uri.path?.substringAfterLast('.', "")?.lowercase()) {

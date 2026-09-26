@@ -42,34 +42,51 @@ class CompositeVideoSourceResolver(private val config: VideoConfig) : VideoSourc
         require(normalized.isNotEmpty()) { "Video identifier must not be empty" }
 
         val direct = runCatching { URI.create(normalized) }.getOrNull()
-        if (direct != null && direct.scheme?.lowercase() in setOf("http", "https")) {
-            if (config.allowDirectUrls && VideoUrlClassifier.isLikelyDirectMediaUrl(direct)) {
-                return resolveDirectUrl(normalized, direct)
+        val isHttp = direct?.scheme?.lowercase() in setOf("http", "https")
+        if (isHttp) VideoUrlPolicy.validate(direct!!, config.allowPrivateNetworks)
+        val isProvider = isHttp && VideoUrlClassifier.isProviderPage(direct!!)
+        val failures = mutableListOf<String>()
+        var lastFailure: Exception? = null
+
+        // Try any non-provider HTTP URL as media first, including signed and
+        // extensionless CDN URLs. An HTML response is never accepted as media.
+        if (isHttp && !isProvider && config.allowDirectUrls) {
+            try {
+                return resolveDirectUrl(normalized, direct!!)
+            } catch (exception: Exception) {
+                lastFailure = exception
+                failures += "direct media: ${safeReason(exception)}"
             }
         }
 
-        config.resolver.url?.trim()?.takeIf { it.isNotEmpty() }?.let {
-            return resolveWithHttpService(normalized, URI.create(it))
+        config.resolver.url?.trim()?.takeIf { it.isNotEmpty() }?.let { url ->
+            try {
+                return resolveWithHttpService(normalized, URI.create(url))
+            } catch (exception: Exception) {
+                lastFailure = exception
+                failures += "external resolver: ${safeReason(exception)}"
+                log.warn("External video resolver failed; attempting the next adapter: {}", safeReason(exception))
+            }
         }
 
         if (config.ytDlp.enabled) {
-            return resolveWithYtDlp(normalized)
+            try {
+                return resolveWithYtDlp(normalized)
+            } catch (exception: Exception) {
+                lastFailure = exception
+                failures += "yt-dlp: ${safeReason(exception)}"
+            }
         }
 
-        if (direct != null &&
-            direct.scheme?.lowercase() in setOf("http", "https") &&
-            config.allowDirectUrls &&
-            !VideoUrlClassifier.isProviderPage(direct)
-        ) {
-            VideoUrlPolicy.validate(direct, config.allowPrivateNetworks)
-            return resolveDirectUrl(normalized, direct)
-        }
-
-        if (direct != null &&
-            direct.scheme?.lowercase() in setOf("http", "https") &&
-            !config.allowDirectUrls
-        ) {
+        if (isHttp && !isProvider && !config.allowDirectUrls && failures.isEmpty()) {
             throw IllegalArgumentException("Direct video URLs are disabled")
+        }
+        if (failures.size == 1 && failures.single().startsWith("direct media:") &&
+            lastFailure is IllegalArgumentException) {
+            throw lastFailure
+        }
+        if (failures.isNotEmpty()) {
+            throw VideoStreamingException("Video resolution failed (${failures.joinToString("; ")})", lastFailure)
         }
 
         throw IllegalArgumentException(
@@ -77,6 +94,11 @@ class CompositeVideoSourceResolver(private val config: VideoConfig) : VideoSourc
                     "magmalink.video.resolver.url or enable magmalink.video.yt-dlp."
         )
     }
+
+    private fun safeReason(exception: Exception): String = exception.message
+        ?.takeIf { !it.contains("http://", ignoreCase = true) && !it.contains("https://", ignoreCase = true) }
+        ?.take(180)
+        ?: exception.javaClass.simpleName
 
     private fun resolveDirectUrl(identifier: String, uri: URI): ResolvedVideoSource {
         val probe = VideoMediaProbe.probe(
@@ -113,7 +135,7 @@ class CompositeVideoSourceResolver(private val config: VideoConfig) : VideoSourc
         }
 
         val resolved = json.decodeFromString(ResolverResponse.serializer(), response.body())
-        return resolved.toSource(identifier)
+        return verifyExtractedMedia(resolved.toSource(identifier))
     }
 
     private fun resolveWithYtDlp(identifier: String): ResolvedVideoSource {
@@ -126,10 +148,11 @@ class CompositeVideoSourceResolver(private val config: VideoConfig) : VideoSourc
             add("--format")
             add(config.ytDlp.format)
             addAll(config.ytDlp.extraArgs)
+            add("--")
             add(identifier)
         }
 
-        log.debug("Resolving video identifier with yt-dlp: {}", identifier)
+        log.debug("Resolving a video identifier with yt-dlp")
         val process = ProcessBuilder(args).redirectErrorStream(false).start()
         val readers = Executors.newFixedThreadPool(2)
         val outputFuture = readers.submit<String> {
@@ -148,15 +171,31 @@ class CompositeVideoSourceResolver(private val config: VideoConfig) : VideoSourc
             val output = outputFuture.get(2, TimeUnit.SECONDS)
             val error = errorFuture.get(2, TimeUnit.SECONDS)
             if (process.exitValue() != 0) {
+                val detail = error.trim().lineSequence().lastOrNull().orEmpty()
+                    .replace(Regex("https?://\\S+"), "[URL]").take(240)
                 throw IllegalStateException(
-                    "yt-dlp failed for '$identifier': ${error.trim().takeLast(500)}"
+                    "yt-dlp exited with code ${process.exitValue()}: $detail"
                 )
             }
 
-            return parseYtDlpResponse(identifier, output)
+            return verifyExtractedMedia(parseYtDlpResponse(identifier, output))
         } finally {
             readers.shutdownNow()
         }
+    }
+
+    /** An extracted URL is only usable when the media CDN actually serves it. */
+    private fun verifyExtractedMedia(source: ResolvedVideoSource): ResolvedVideoSource {
+        source.mediaUrls.forEach { uri ->
+            VideoMediaProbe.probe(
+                uri = uri,
+                allowPrivateNetworks = config.allowPrivateNetworks,
+                connectTimeoutMs = config.resolver.connectTimeoutMs,
+                readTimeoutMs = config.resolver.readTimeoutMs,
+                headers = source.headers
+            )
+        }
+        return source
     }
 
     private fun parseYtDlpResponse(identifier: String, output: String): ResolvedVideoSource {

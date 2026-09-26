@@ -18,6 +18,13 @@ The media probe checks the response body and content type, so an HTML login
 page, bot challenge, or provider page returned with HTTP 200 is rejected
 before a video session is created.
 
+Direct media probes use a bounded byte range, and retry with a bounded GET
+when a CDN rejects range requests. Extensionless media URLs are checked before
+the optional external resolver. Redirect targets are validated before each
+request; private/local addresses remain blocked unless explicitly enabled.
+If the external resolver fails, MagmaLink also tries the configured yt-dlp
+adapter when enabled.
+
 ```http
 GET /magma/v1/videos/load?identifier=https%3A%2F%2Fexample.com%2Fmovie.mp4
 Authorization: your-lavalink-password
@@ -127,7 +134,7 @@ magmalink:
     ytDlp:
       enabled: true
       binary: yt-dlp
-      format: "best[ext=mp4]/best"
+      format: "bv[vcodec^=avc1][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*[ext=mp4]+ba[ext=m4a]/b"
 ```
 
 For a standalone JAR deployment, install `yt-dlp` on the host and keep
@@ -135,6 +142,12 @@ For a standalone JAR deployment, install `yt-dlp` on the host and keep
 
 Provider availability, login requirements, rate limits, and content rights
 remain the responsibility of the operator and the resolver configuration.
+MagmaLink probes extracted media URLs with the resolver-provided HTTP headers
+before returning a successful load. A provider may return metadata and a
+signed URL that its CDN subsequently rejects (for example, HTTP 403); in that
+case the load endpoint returns an error instead of an unusable playback URL.
+This verification does not guarantee that short-lived provider URLs will
+remain available for the lifetime of a session.
 
 ## Docker
 

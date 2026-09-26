@@ -38,7 +38,9 @@ class ResolverConfig {
 class YtDlpConfig {
     var enabled: Boolean = true
     var binary: String = "yt-dlp"
-    var format: String = "best[ext=mp4]/best"
+    // Prefer H.264 + M4A for broad MPEG-TS HLS compatibility. YouTube often
+    // has no working muxed MP4, so retain the separate-stream fallback.
+    var format: String = "bv[vcodec^=avc1][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*[ext=mp4]+ba[ext=m4a]/b"
     var timeoutSeconds: Long = 60
     var extraArgs: List<String> = emptyList()
 }

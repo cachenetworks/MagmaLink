@@ -21,4 +21,17 @@ class VideoRestHandlerTest {
             "The stream endpoint must declare ResponseEntity<StreamingResponseBody> or Spring will not use its streaming handler"
         )
     }
+
+    @Test
+    fun `HLS segment endpoint uses the Spring streaming response handler`() {
+        val method = VideoRestHandler::class.java.getDeclaredMethod(
+            "segment",
+            String::class.java,
+            String::class.java
+        )
+        assertTrue(
+            StreamingResponseBodyReturnValueHandler().supportsReturnType(MethodParameter(method, -1)),
+            "HLS segment files must use a streaming response to avoid a 500 converter error"
+        )
+    }
 }

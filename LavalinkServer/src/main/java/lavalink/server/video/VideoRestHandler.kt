@@ -3,8 +3,6 @@ package lavalink.server.video
 import dev.arbjerg.lavalink.protocol.v4.json
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
-import org.springframework.core.io.FileSystemResource
-import org.springframework.core.io.Resource
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -71,26 +69,27 @@ class VideoRestHandler(
      * browsers, media players, and reverse proxies.
      */
     @GetMapping("/{videoId}/{fileName:.+}")
-    fun segment(@PathVariable videoId: String, @PathVariable fileName: String): ResponseEntity<Any> {
-        if (fileName == "manifest.m3u8") return error(HttpStatus.NOT_FOUND, "Video segment not found")
+    fun segment(@PathVariable videoId: String, @PathVariable fileName: String): ResponseEntity<StreamingResponseBody> {
+        if (fileName == "manifest.m3u8") return streamError(HttpStatus.NOT_FOUND, "Video segment not found")
 
         return try {
             val path = sessions.cachedFile(videoId, fileName)
-            val resource: Resource = FileSystemResource(path)
             val headers = HttpHeaders()
             headers.contentLength = Files.size(path)
             headers.cacheControl = "public, max-age=600"
             ResponseEntity.ok()
                 .headers(headers)
                 .contentType(mediaTypeFor(fileName))
-                .body(resource)
+                .body(StreamingResponseBody { output ->
+                    Files.newInputStream(path).use { input -> input.copyTo(output) }
+                })
         } catch (exception: VideoSessionNotFound) {
-            error(HttpStatus.NOT_FOUND, exception.message ?: "Video segment not found")
+            streamError(HttpStatus.NOT_FOUND, exception.message ?: "Video segment not found")
         } catch (exception: IllegalArgumentException) {
-            error(HttpStatus.BAD_REQUEST, exception.message ?: "Invalid video segment")
+            streamError(HttpStatus.BAD_REQUEST, exception.message ?: "Invalid video segment")
         } catch (exception: Exception) {
             log.error("Unable to read video segment {} from session {}", fileName, videoId, exception)
-            error(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to read video segment")
+            streamError(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to read video segment")
         }
     }
 

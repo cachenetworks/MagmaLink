@@ -98,7 +98,7 @@ magmalink:
     ytDlp:
       enabled: true
       binary: yt-dlp
-      format: "best[ext=mp4]/best"
+      format: "bv[vcodec^=avc1][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*[ext=mp4]+ba[ext=m4a]/b"
       timeoutSeconds: 60
       extraArgs: []
 

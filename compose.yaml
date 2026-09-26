@@ -211,7 +211,7 @@ services:
       - MAGMALINK_VIDEO_ALLOW_PRIVATE_NETWORKS=false
       - MAGMALINK_VIDEO_YT_DLP_ENABLED=true
       - MAGMALINK_VIDEO_YT_DLP_BINARY=yt-dlp
-      - MAGMALINK_VIDEO_YT_DLP_FORMAT=best[ext=mp4]/best
+      - MAGMALINK_VIDEO_YT_DLP_FORMAT=bv[vcodec^=avc1][ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*[ext=mp4]+ba[ext=m4a]/b
     volumes:
       - ./plugins:/opt/Lavalink/plugins:rw
       - ./logs/node04:/opt/Lavalink/logs
